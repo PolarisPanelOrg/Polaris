@@ -16,12 +16,25 @@ import (
 // fetch the subscription from at most that many devices; requests without
 // an id are served (the client cannot be told apart).
 
+// hwidOf accepts the documented X-HWID family as well as the older client
+// headers. Header field names are case-insensitive, but accepting X-HWID-ID
+// makes clients that distinguish a device identifier from its display name
+// interoperate without custom subscription URLs.
 func hwidOf(r *http.Request) string {
-	for _, h := range []string{"X-Hwid", "X-Device-Id"} {
+	for _, h := range []string{"X-HWID", "X-HWID-ID", "X-Device-Id"} {
 		if v := strings.TrimSpace(r.Header.Get(h)); v != "" {
 			if len(v) > 128 {
 				v = v[:128]
 			}
+			return v
+		}
+	}
+	return ""
+}
+
+func hwidHeader(r *http.Request, names ...string) string {
+	for _, h := range names {
+		if v := strings.TrimSpace(r.Header.Get(h)); v != "" {
 			return v
 		}
 	}
@@ -46,7 +59,8 @@ func (s *Server) checkDevice(u *store.User, r *http.Request) bool {
 		return true
 	}
 	upd := map[string]any{"last_seen": now, "user_agent": ua, "ip": clientIP(r),
-		"os": clip(r.Header.Get("X-Device-Os"), 64), "model": clip(r.Header.Get("X-Device-Model"), 128)}
+		"os":    clip(hwidHeader(r, "X-HWID-OS", "X-Device-Os"), 64),
+		"model": clip(hwidHeader(r, "X-HWID-Model", "X-Device-Model"), 128)}
 	res := s.st.DB.Model(&store.UserDevice{}).Where("user_id = ? AND hwid = ?", u.ID, hwid).Updates(upd)
 	if res.Error == nil && res.RowsAffected > 0 {
 		return true // known device
@@ -87,5 +101,70 @@ func (s *Server) deleteDevice(c *gin.Context) {
 		return
 	}
 	s.auditCtx(c, "user.device_delete", c.Param("id"), c.Param("did"))
+	c.Status(http.StatusNoContent)
+}
+
+type portalDeviceView struct {
+	ID        string    `json:"id"`
+	HWID      string    `json:"hwid"`
+	OS        string    `json:"os"`
+	Model     string    `json:"model"`
+	IP        string    `json:"ip"`
+	FirstSeen time.Time `json:"firstSeen"`
+	LastSeen  time.Time `json:"lastSeen"`
+}
+
+// portalDevices lists only the signed-in user's subscription devices. The
+// opaque database ID, rather than a hardware ID supplied by the client, is
+// used for removal so one user cannot target another user's device record.
+func (s *Server) portalDevices(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	u := s.portalUser(c)
+	if u == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "请重新登录"})
+		return
+	}
+	var rows []store.UserDevice
+	if err := s.st.DB.Where("user_id = ?", u.ID).Order("last_seen DESC, id DESC").Find(&rows).Error; err != nil {
+		serverError(c, err)
+		return
+	}
+	out := make([]portalDeviceView, 0, len(rows))
+	for _, row := range rows {
+		// Full client IDs are unnecessary on the portal and may be sensitive.
+		masked := clip(row.HWID, 16)
+		if len(row.HWID) > len(masked) {
+			masked += "…"
+		}
+		out = append(out, portalDeviceView{ID: row.ID, HWID: masked, OS: row.OS, Model: row.Model, IP: row.IP, FirstSeen: row.FirstSeen, LastSeen: row.LastSeen})
+	}
+	c.JSON(http.StatusOK, gin.H{"items": out})
+}
+
+// portalDeleteDevice removes one device owned by the signed-in portal user.
+func (s *Server) portalDeleteDevice(c *gin.Context) {
+	if !portalWrite(c) {
+		return
+	}
+	u := s.portalUser(c)
+	if u == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "请重新登录"})
+		return
+	}
+	id := c.Param("did")
+	if id == "" || id == "all" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "设备不存在"})
+		return
+	}
+	res := s.st.DB.Where("id = ? AND user_id = ?", id, u.ID).Delete(&store.UserDevice{})
+	if res.Error != nil {
+		serverError(c, res.Error)
+		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "设备不存在"})
+		return
+	}
+	s.audit(portalActor(u, s.portalViaMail(c)), "user.device_delete", u.Username, id, clientIP(c.Request))
 	c.Status(http.StatusNoContent)
 }

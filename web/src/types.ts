@@ -113,7 +113,7 @@ export interface ChainHop { nodeId: string; inboundId?: string; port?: number }
 export interface HopProbe { nodeId: string; latencyMs: number; ok: boolean; skipped?: boolean; error?: string }
 export interface Chain { id: string; name: string; mode: 'l4' | 'proxy'; hops: ChainHop[]; disabled?: boolean; published?: boolean; configurationIssues?: string[]; serviceUserId: string; probe: HopProbe[]; probedAt?: string; remark: string }
 export interface Outbound { id: string; nodeId: string; tag: string; type: string; settings?: any; nodeRefInboundId: string; sourceNodeId?: string; detour: string; chainId: string; remark: string }
-export interface RouteMatch { inbound?: string[]; userGroups?: string[]; users?: string[]; domain?: string[]; domainSuffix?: string[]; domainKeyword?: string[]; geosite?: string[]; geoip?: string[]; ipCidr?: string[]; ruleSets?: string[]; port?: string[]; network?: string }
+export interface RouteMatch { inbound?: string[]; userGroups?: string[]; users?: string[]; domain?: string[]; domainSuffix?: string[]; domainKeyword?: string[]; geosite?: string[]; geoip?: string[]; ipCidr?: string[]; ruleSets?: string[]; port?: string[]; network?: string; protocol?: string[] }
 export interface RuleSet {
   id: string; tag: string; name: string; remark: string; sourceUrl: string; domain: string[]; domainSuffix: string[]; domainKeyword: string[]; ipCidr: string[]
   fetchedAt?: string; fetchError: string; count: number; used: string[]

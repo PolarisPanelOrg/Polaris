@@ -92,7 +92,8 @@ func (s *Server) shopBuyerOf(c *gin.Context, u *store.User) (shopBuyer, bool) {
 }
 
 // webOrder loads an order this request may see: the browser holds its key
-// (cookie, or ?k= from a saved link), or the signed-in user owns it.
+// in an HttpOnly cookie, or the signed-in user owns it. Credentials are never
+// accepted from a URL, where history, referrers, and logs could retain them.
 func (s *Server) webOrder(c *gin.Context, id string) (*store.Order, *store.User, bool) {
 	var o store.Order
 	if s.st.DB.First(&o, "id = ?", id).Error != nil {
@@ -105,13 +106,8 @@ func (s *Server) webOrder(c *gin.Context, id string) (*store.Order, *store.User,
 	if o.WebKey == "" {
 		return nil, nil, false
 	}
-	for _, k := range []string{c.Query("k"), s.shopWebKey(c, false)} {
-		if validWebKey(k) && subtle.ConstantTimeCompare([]byte(webKeyHash(k)), []byte(o.WebKey)) == 1 {
-			if c.Query("k") == k && s.shopWebKey(c, false) != k {
-				s.setShopWebCookie(c, k) // a saved link: remember it here
-			}
-			return &o, u, true
-		}
+	if k := s.shopWebKey(c, false); validWebKey(k) && subtle.ConstantTimeCompare([]byte(webKeyHash(k)), []byte(o.WebKey)) == 1 {
+		return &o, u, true
 	}
 	return nil, nil, false
 }
@@ -185,6 +181,7 @@ func (s *Server) webShopPage(c *gin.Context) {
 	data["User"] = u
 	if u != nil {
 		data["UserLine"] = s.userLine(u)
+		data["CurrentPlanID"] = u.PlanID
 	}
 	data["Items"], data["Packs"], data["Types"], data["Orders"] = items, packs, types, orders
 	data["USDT"], data["Pay"], data["Nets"] = s.usdtOn(), s.epayOn() || s.usdtOn(), s.usdtNetsOn()
@@ -350,6 +347,24 @@ func (s *Server) webShopLimit(c *gin.Context) bool {
 	return true
 }
 
+// webShopOrderAccess exchanges a manually entered order credential for the
+// short-lived HttpOnly browser cookie. It intentionally returns no credential.
+func (s *Server) webShopOrderAccess(c *gin.Context) {
+	var req struct {
+		Key string `json:"key"`
+	}
+	if !aiReadJSON(c, &req) {
+		return
+	}
+	var o store.Order
+	if s.st.DB.First(&o, "id = ?", c.Param("id")).Error != nil || !validWebKey(req.Key) || o.WebKey == "" || subtle.ConstantTimeCompare([]byte(webKeyHash(req.Key)), []byte(o.WebKey)) != 1 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "订单不存在，或订单号、凭据不正确"})
+		return
+	}
+	s.setShopWebCookie(c, req.Key)
+	c.Status(http.StatusNoContent)
+}
+
 // webShopOrderPage is GET /u/shop/order/:id.
 func (s *Server) webShopOrderPage(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
@@ -398,7 +413,7 @@ func (s *Server) webShopOrderPage(c *gin.Context) {
 		}
 	}
 	if k := s.shopWebKey(c, false); k != "" && o.WebKey != "" && viewer == nil {
-		data["SaveLink"] = s.panelBase() + shopWebPath + "/order/" + o.ID + "?k=" + k
+		// Display the recovery credential once, but never serialize it into a URL.
 		data["Key"] = k
 	}
 	// The account the order opened, for a buyer who is not signed in: the

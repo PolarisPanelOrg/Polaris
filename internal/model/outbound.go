@@ -139,6 +139,9 @@ type RouteMatch struct {
 	RuleSets []string `json:"ruleSets,omitempty"`
 	Port     []string `json:"port,omitempty"` // "443" or "1000-2000"
 	Network  string   `json:"network,omitempty"`
+	// Protocol is matched after inbound traffic sniffing. Currently the panel
+	// exposes bittorrent for Xray and sing-box; Mihomo has no equivalent.
+	Protocol []string `json:"protocol,omitempty"`
 }
 
 // RouteRule sends matching traffic to an outbound (or group) tag.

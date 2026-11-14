@@ -715,6 +715,7 @@ func renderRules(rules []model.RouteRule) (out []any, ruleSets []any, final stri
 		if m.Network != "" {
 			x["network"] = strings.Split(m.Network, ",")
 		}
+		setIf("protocol", m.Protocol)
 		if len(x) == 0 {
 			if len(m.UserGroups) > 0 {
 				continue

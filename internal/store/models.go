@@ -989,6 +989,19 @@ type SubProfile struct {
 
 // TGAdmin is a Telegram chat allowed to administer the panel. Owners see
 // everything; operators only the nodes they are bound to.
+// AIKnowledgeDocument is an owner-managed document used by the AI assistant.
+// Audience controls whether a portal conversation may retrieve it.
+type AIKnowledgeDocument struct {
+	ID        string    `gorm:"primaryKey;size:32" json:"id"`
+	Title     string    `gorm:"size:160" json:"title"`
+	Body      string    `gorm:"type:text" json:"body"`
+	Audience  string    `gorm:"size:16;index" json:"audience"` // portal / admin
+	Enabled   bool      `json:"enabled"`
+	Revision  int       `json:"revision"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 type TGAdmin struct {
 	AvatarEmail string         `gorm:"size:254" json:"-"` // avatar preference only
 	ID          string         `gorm:"primaryKey;size:32" json:"id"`
@@ -1006,7 +1019,7 @@ func AllModels() []any {
 		&Website{}, &RestoreDrill{}, &Node{}, &Core{}, &Inbound{}, &User{}, &Group{}, &GroupInbound{}, &UserGroup{}, &UserAccess{},
 		&TrafficHourly{}, &Certificate{}, &ConfigRevision{}, &Admin{}, &Passkey{}, &AccountRecoveryCode{}, &AuditLog{},
 		&Endpoint{}, &CDNProfile{}, &Outbound{}, &Chain{}, &RoutingRule{}, &InboundTemplate{}, &TemplateRun{},
-		&SubProcessingGroup{}, &SubProcessingGroupVersion{}, &Setting{}, &SubTemplate{}, &DNSProvider{}, &DomainBinding{}, &SubSource{}, &SubSourceNode{}, &SubSourceRefresh{}, &SubProfile{}, &TGAdmin{},
+		&SubProcessingGroup{}, &SubProcessingGroupVersion{}, &Setting{}, &AIKnowledgeDocument{}, &SubTemplate{}, &DNSProvider{}, &DomainBinding{}, &SubSource{}, &SubSourceNode{}, &SubSourceRefresh{}, &SubProfile{}, &TGAdmin{},
 		&UserDevice{}, &TagTraffic{}, &ForwardRule{}, &UserNodeQuota{},
 		&TrafficDaily{}, &TagTrafficDaily{}, &NodeMetric{}, &AdminSession{}, &PortalSession{}, &PortalSessionEpoch{}, &LoginBan{}, &InboundHealth{}, &SSOProvider{}, &SSOBinding{}, &GroupNode{}, &NodeTrafficDaily{}, &NodeNetBoot{}, &NodeCost{},
 		&DNSConfig{}, &RuleSet{}, &APIToken{}, &IdempotencyKey{}, &Webhook{}, &WebhookDelivery{}, &Plugin{},

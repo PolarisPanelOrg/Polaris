@@ -257,7 +257,7 @@ export default function InboundFields({ draft, onChange, caps, allCaps, coreChoi
             <RealityAdvanced s={s} setS={setS} mldsa={hasFeature(caps, 'reality-mldsa65')} />}
         </>
       )}
-      <div className="toggle"><span>{t('流量嗅探（http / tls / quic）')}</span><Switch label={t('嗅探')} on={draft.sniffing.enabled} onChange={(v) => onChange({ ...draft, sniffing: { ...draft.sniffing, enabled: v } })} /></div>
+      <div className="toggle"><span>{t('流量嗅探（http / tls / quic / bittorrent；用于协议 BT 拦截）')}</span><Switch label={t('嗅探')} on={draft.sniffing.enabled} onChange={(v) => onChange({ ...draft, sniffing: { ...draft.sniffing, enabled: v } })} /></div>
       {draft.sniffing.enabled && isXray && (
         <details className="more"><summary>{t('嗅探选项')}</summary><div><SniffExtras sn={draft.sniffing} set={(sn) => onChange({ ...draft, sniffing: sn })} /></div></details>
       )}

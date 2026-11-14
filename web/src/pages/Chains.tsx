@@ -525,7 +525,7 @@ function OutboundDrawer({ node, outbound, inbounds, outbounds, onClose, onSaved 
 
 const matchKeys: { k: keyof RouteMatch; label: string }[] = [
   { k: 'geosite', label: 'geosite' }, { k: 'geoip', label: 'geoip' }, { k: 'domain', label: 'domain' }, { k: 'domainSuffix', label: 'domain_suffix' },
-  { k: 'domainKeyword', label: 'keyword' }, { k: 'ipCidr', label: 'ip_cidr' }, { k: 'ruleSets', label: t('规则集') }, { k: 'port', label: 'port' }, { k: 'inbound', label: 'inbound' }, { k: 'userGroups', label: t('用户分组') },
+  { k: 'domainKeyword', label: 'keyword' }, { k: 'ipCidr', label: 'ip_cidr' }, { k: 'ruleSets', label: t('规则集') }, { k: 'port', label: 'port' }, { k: 'protocol', label: t('协议嗅探') }, { k: 'inbound', label: 'inbound' }, { k: 'userGroups', label: t('用户分组') },
 ]
 
 function matchText(m: RouteMatch, groupName: (id: string) => string) {

@@ -13,7 +13,7 @@
 
 {{if .Account}}<section class="card p-account-secret"><h2>服务已开通</h2><p>用户名：<b>{{.Account}}</b></p><p class="mute">将订阅导入客户端即可使用，请勿分享订阅链接。</p><label for="delivered-sub">订阅链接</label><div class="p-form-row"><input id="delivered-sub" type="password" readonly class="p-input" value="{{.SubURL}}" aria-label="已开通的订阅链接"><button class="btn alt" data-copy="{{.SubURL}}" type="button">复制订阅</button></div><div class="p-inline-actions"><a class="btn pri" href="{{.SubURL}}" target="_blank" rel="noopener noreferrer">打开订阅页</a>{{if .BindURL}}<a class="btn alt" href="{{.BindURL}}" target="_blank" rel="noopener noreferrer">绑定 Telegram</a>{{end}}{{if .SignedIn}}<a class="btn alt" href="/u">返回用户中心</a>{{end}}</div>{{if .BindURL}}<p class="mute">绑定 Telegram 后，可登录用户中心续费与加购流量包。</p>{{end}}</section>{{end}}
 
-{{if .SaveLink}}<section class="card p-order-credentials"><h2>保存订单凭据</h2><p class="mute">换浏览器或设备时，可用订单号与凭据找回本订单{{if .Account}}和账号{{end}}。请妥善保存，不要分享。</p><div>订单号：<code>{{.O.ID}}</code></div><div>凭据：<code>{{.Key}}</code></div><div><code>{{.SaveLink}}</code></div><button class="btn alt" type="button" data-copy="{{.SaveLink}}">复制订单查询链接</button></section>{{end}}
+{{if .Key}}<section class="card p-order-credentials"><h2>保存订单凭据</h2><p class="mute">换浏览器或设备时，可在“查询订单”中手动填写订单号与凭据找回本订单{{if .Account}}和账号{{end}}。凭据不会放进 URL；请妥善保存，不要分享。</p><div>订单号：<code>{{.O.ID}}</code></div><div>凭据：<code>{{.Key}}</code></div><button class="btn alt" type="button" data-copy="{{.Key}}">复制订单凭据</button></section>{{end}}
 {{if .Support}}<section class="card"><h2>订单支持</h2><p class="mute p-shop-terms">{{.Support}}</p>{{if .SignedIn}}<a href="/u#orders">返回我的订单 →</a>{{end}}</section>{{end}}
 </section>
 <script>
