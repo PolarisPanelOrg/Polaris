@@ -111,17 +111,17 @@ func TestAgentCacheVersionMarker(t *testing.T) {
 	s := newTestServer(t)
 	dir := s.downloadsDir()
 	os.MkdirAll(dir, 0o755)
-	if s.agentCacheCurrent() {
+	if s.agentCacheComplete() {
 		t.Fatal("empty cache reported current")
 	}
 	for _, a := range agentArches {
 		os.WriteFile(filepath.Join(dir, "polaris-agent-linux-"+a), []byte("x"), 0o755)
 	}
-	if !s.agentCacheCurrent() {
+	if !s.agentCacheComplete() {
 		t.Fatal("hand-placed binaries (no marker) should be trusted")
 	}
 	os.WriteFile(filepath.Join(dir, ".version"), []byte("v0.0.1\n"), 0o644)
-	if s.agentCacheCurrent() {
+	if s.agentCacheComplete() {
 		t.Fatal("binaries of another version reported current")
 	}
 }

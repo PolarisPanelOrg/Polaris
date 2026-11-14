@@ -60,14 +60,25 @@ func (s *Server) upgradeAgent(ctx context.Context, n *store.Node) error {
 	if validArch(n.Arch) {
 		need = []string{n.Arch}
 	}
+	fetchErr := map[string]error{}
 	for _, a := range need {
 		if err := s.ensureAgent(ctx, a); err != nil {
+			fetchErr[a] = err
 			s.log.Warn("cache agent for upgrade", "arch", a, "err", err)
 		}
 	}
 	args := map[string]string{"version": Version}
 	for _, a := range agentArches {
 		args["sha256_"+a] = s.agentSHA(a)
+	}
+	// A missing binary for the node's own architecture must fail here with
+	// the fetch error, not reach the agent as an empty SHA (which it reports
+	// as "the panel has no agent binary for <arch>").
+	if validArch(n.Arch) && args["sha256_"+n.Arch] == "" {
+		if err := fetchErr[n.Arch]; err != nil {
+			return fmt.Errorf("无法获取 %s Agent 二进制：%w（检查与 GitHub 的连接 / github_mirror 设置）", n.Arch, err)
+		}
+		return fmt.Errorf("主控上没有 %s Agent 二进制（等待自动缓存完成，或检查与 GitHub 的连接 / github_mirror）", n.Arch)
 	}
 	if args["sha256_amd64"] == "" && args["sha256_arm64"] == "" {
 		return errors.New("主控上没有可分发的 Agent（等待自动缓存完成，或检查与 GitHub 的连接 / github_mirror）")

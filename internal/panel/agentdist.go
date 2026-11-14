@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -61,9 +60,6 @@ func agentMarker() string {
 	}
 	return Version
 }
-
-// agentCacheCurrent reports whether the panel's own architecture is cached.
-func (s *Server) agentCacheCurrent() bool { return s.agentCurrent(runtime.GOARCH) }
 
 var agentFetchMu sync.Mutex
 
@@ -191,19 +187,36 @@ func (s *Server) serveTool(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, s.toolPath())
 }
 
-// syncAgentBinaries caches the panel's own architecture and drops builds of
-// other architectures left from an older version (they would be handed out
-// with a stale checksum; they are fetched again on demand).
+// syncAgentBinaries caches both agent architectures and drops builds left
+// from an older version (they would be handed out with a stale checksum).
+// Both are fetched up front so an arm64 node never hits a cold cache mid
+// upgrade and fails with "the panel has no agent binary for arm64".
 func (s *Server) syncAgentBinaries(ctx context.Context) error {
 	for _, a := range agentArches {
-		if a != runtime.GOARCH && !s.agentCurrent(a) {
+		if !s.agentCurrent(a) {
 			os.Remove(s.agentPath(a))
 		}
 	}
 	if Version == "dev" {
 		return nil
 	}
-	return s.ensureAgent(ctx, runtime.GOARCH)
+	var firstErr error
+	for _, a := range agentArches {
+		if err := s.ensureAgent(ctx, a); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
+// agentCacheComplete reports whether both architectures are cached.
+func (s *Server) agentCacheComplete() bool {
+	for _, a := range agentArches {
+		if !s.agentCurrent(a) {
+			return false
+		}
+	}
+	return true
 }
 
 // runAgentSync retries hourly until the cache is filled.
@@ -214,7 +227,7 @@ func (s *Server) runAgentSync(ctx context.Context) {
 		if err := s.syncAgentBinaries(ctx); err != nil {
 			s.log.Warn("could not cache agent binary; nodes will download it from GitHub", "err", err)
 		}
-		if s.agentCacheCurrent() || Version == "dev" {
+		if s.agentCacheComplete() || Version == "dev" {
 			return
 		}
 		select {
