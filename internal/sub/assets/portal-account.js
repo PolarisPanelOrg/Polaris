@@ -56,6 +56,36 @@
     function accountVisible(){if(location.hash==='#account'&&!document.hidden)loadSessions()}
     window.addEventListener('hashchange',accountVisible);document.addEventListener('visibilitychange',accountVisible);setInterval(function(){if(!document.getElementById('p-sessions').contains(document.activeElement))accountVisible()},30000);accountVisible();
   }
+  var deviceList=document.getElementById('p-devices-list'),deviceBusy=false;
+  function deviceError(message){var el=document.getElementById('p-devices-error');el.textContent=message;el.hidden=!message}
+  function deviceLock(locked){deviceBusy=locked;document.getElementById('p-devices').setAttribute('aria-busy',String(locked));document.querySelectorAll('#p-devices button').forEach(function(button){button.disabled=locked})}
+  function renderDevices(data){
+    deviceList.replaceChildren();var items=data.items||[];
+    items.forEach(function(item){
+      var row=document.createElement('div');row.className='p-session-row';
+      var info=document.createElement('div'),title=document.createElement('b'),detail=document.createElement('p');
+      title.textContent=item.model||item.os||'未知设备';detail.className='mute';
+      var meta=[item.hwid,item.os,item.ip];detail.textContent=meta.filter(Boolean).join(' · ')+' · 最近更新 '+new Date(item.lastSeen).toLocaleString();
+      info.append(title,detail);row.append(info);
+      var button=document.createElement('button');button.type='button';button.className='btn alt sm';button.dataset.deviceId=item.id;button.textContent='移除设备';row.append(button);deviceList.append(row);
+    });
+    if(!items.length){var empty=document.createElement('p');empty.className='mute';empty.textContent='暂无订阅设备记录';deviceList.append(empty)}
+  }
+  function loadDevices(){
+    if(!deviceList||deviceBusy)return;deviceLock(true);deviceError('');
+    accountRequest('devices').then(renderDevices).catch(function(error){if(error.status===401){location.replace('/u/login');return}deviceError('订阅设备加载失败，请重试')}).finally(function(){deviceLock(false)});
+  }
+  if(deviceList){
+    document.getElementById('p-devices-refresh').addEventListener('click',loadDevices);
+    document.getElementById('p-devices').addEventListener('click',function(event){
+      var button=event.target.closest('button[data-device-id]');if(!button||deviceBusy)return;
+      if(!confirm('移除这个订阅设备？该客户端下次更新订阅会重新登记。'))return;
+      deviceLock(true);deviceError('');
+      accountRequest('devices/'+encodeURIComponent(button.dataset.deviceId),'DELETE',{}).then(function(){return accountRequest('devices').then(renderDevices)}).catch(function(error){if(error.status===401){location.replace('/u/login');return}deviceError('移除设备失败，请检查网络后重试')}).finally(function(){deviceLock(false)});
+    });
+    function devicesVisible(){if(location.hash==='#account'&&!document.hidden)loadDevices()}
+    window.addEventListener('hashchange',devicesVisible);document.addEventListener('visibilitychange',devicesVisible);devicesVisible();
+  }
   document.addEventListener('click', function (e) {
     if (!e.target.closest('[data-portal-logout]') || busy) return;
     busy = true;

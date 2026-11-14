@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	projectdocs "github.com/cuijianzhuang/polaris/docs"
+	"github.com/cuijianzhuang/polaris/internal/store"
 )
 
 type aiKnowledgeSource struct {
@@ -140,6 +141,47 @@ func aiKnowledgeFor(query, custom string, portal bool) []aiKnowledgeSource {
 	for i := range out {
 		out[i].ID = string(rune('1' + i))
 		out[i].ID = "K" + out[i].ID
+	}
+	return out
+}
+
+// aiKnowledgeDocumentsFor queries operator-maintained documents separately from
+// embedded documentation. The audience predicate is enforced server-side.
+func (s *Server) aiKnowledgeDocumentsFor(query string, portal bool) []aiKnowledgeSource {
+	q := s.st.DB.Where("enabled = ?", true)
+	if portal {
+		q = q.Where("audience = ?", "portal")
+	}
+	var docs []store.AIKnowledgeDocument
+	if q.Order("updated_at DESC").Find(&docs).Error != nil {
+		return nil
+	}
+	terms := aiTerms(query)
+	type scored struct {
+		d     store.AIKnowledgeDocument
+		score int
+	}
+	matches := []scored{}
+	for _, d := range docs {
+		score := 0
+		title, body := strings.ToLower(d.Title), strings.ToLower(d.Body)
+		for _, term := range terms {
+			if strings.Contains(title, term) {
+				score += 6
+			}
+			score += min(strings.Count(body, term), 3)
+		}
+		if score > 0 {
+			matches = append(matches, scored{d, score})
+		}
+	}
+	sort.SliceStable(matches, func(i, j int) bool { return matches[i].score > matches[j].score })
+	out := make([]aiKnowledgeSource, 0, min(4, len(matches)))
+	for _, m := range matches {
+		if len(out) == 4 {
+			break
+		}
+		out = append(out, aiKnowledgeSource{Title: m.d.Title, Document: "知识库/" + m.d.Audience, Excerpt: aiRedact(aiSnippet(m.d.Body, query, 900))})
 	}
 	return out
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Server) renderPortalSection(c *gin.Context, status int, active, title string, tpl *template.Template, data any, user *store.User) {
-	nav := sub.PortalNavigation{Title: s.subTitle(s.st.GetSetting("site_title", "Polaris")), Active: active, PageTitle: title, Guest: user == nil, Registration: s.mailRegisterOn()}
+	nav := sub.PortalNavigation{Title: s.subTitle(s.st.GetSetting("site_title", "Polaris")), Active: active, PageTitle: title, Lang: portalLang(c), Guest: user == nil, Registration: s.mailRegisterOn()}
 	if user != nil {
 		nav.Username, nav.Email = user.Username, user.Email
 	}

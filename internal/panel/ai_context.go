@@ -273,7 +273,15 @@ func (s *Server) aiPortalChat(c *gin.Context) {
 }
 func (s *Server) aiRespond(c *gin.Context, cfg aiConfig, r aiRequest, data gin.H, facts []string, portal bool) {
 	data["collectedAt"] = time.Now().UTC()
-	sources := aiKnowledgeFor(r.Prompt+" "+r.Logs+" "+r.Mode, cfg.Knowledge, portal)
+	query := r.Prompt + " " + r.Logs + " " + r.Mode
+	sources := aiKnowledgeFor(query, cfg.Knowledge, portal)
+	sources = append(sources, s.aiKnowledgeDocumentsFor(query, portal)...)
+	if len(sources) > 5 {
+		sources = sources[:5]
+	}
+	for i := range sources {
+		sources[i].ID = fmt.Sprintf("K%d", i+1)
+	}
 	data["facts"], data["knowledge"] = facts, sources
 	encoded, err := json.Marshal(data)
 	if err != nil {

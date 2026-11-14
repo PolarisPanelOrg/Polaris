@@ -29,4 +29,11 @@ func TestPortalLayoutEscapesFragmentAndKeepsNavigation(t *testing.T) {
 	if strings.Contains(string(page), `href="/u#orders"`) || strings.Contains(string(page), `href="/u/tickets"`) || !strings.Contains(string(page), `href="/u/login"`) {
 		t.Fatal("guest chrome exposes authenticated destinations")
 	}
+	page, err = RenderPortalSection(PortalNavigation{Title: "Polaris", Lang: "en", Guest: true, Active: "shop", PageTitle: "Plans"}, body, map[string]string{"Text": "guest"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(page); !strings.Contains(got, `<html lang="en">`) || !strings.Contains(got, `>Language<`) || !strings.Contains(got, `>Plans<`) {
+		t.Fatal("English portal chrome was not rendered")
+	}
 }

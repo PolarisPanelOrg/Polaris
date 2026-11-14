@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	_ "embed"
 	"encoding/hex"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -32,12 +33,33 @@ import (
 const (
 	portalPath        = "/u"
 	portalCookie      = "polaris_u"
+	portalLangCookie  = "polaris_portal_lang"
 	portalLoginPrefix = "ulogin_"
 	portalSessionTTL  = 30 * 24 * time.Hour
 	portalHeader      = "X-Polaris-Portal" // required on state-changing requests (CSRF)
 )
 
 func (s *Server) portalEnabled() bool { return s.st.GetSetting("portal_enabled", "false") == "true" }
+
+func portalLang(c *gin.Context) string {
+	v, _ := c.Cookie(portalLangCookie)
+	return sub.PortalLocale(v)
+}
+
+func (s *Server) setPortalLanguage(c *gin.Context) {
+	if !portalWrite(c) {
+		return
+	}
+	var req struct {
+		Lang string `json:"lang"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || (req.Lang != "zh-CN" && req.Lang != "en") {
+		badRequest(c, fmt.Errorf("unsupported portal language"))
+		return
+	}
+	http.SetCookie(c.Writer, &http.Cookie{Name: portalLangCookie, Value: req.Lang, Path: portalPath, MaxAge: 365 * 24 * 3600, HttpOnly: true, Secure: c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https", SameSite: http.SameSiteLaxMode})
+	c.Status(http.StatusNoContent)
+}
 
 // Keep the portal login method visible while a configured bot reconnects.
 func (s *Server) portalTelegramConfigured() bool {
@@ -178,6 +200,7 @@ func (s *Server) portalPage(c *gin.Context) {
 	if u == nil {
 		var buf strings.Builder
 		if err := portalLoginTpl.Execute(&buf, map[string]any{
+			"Lang":         portalLang(c),
 			"Title":        s.subTitle(s.st.GetSetting("site_title", "Polaris")),
 			"Bot":          s.portalTelegramConfigured(),
 			"Mail":         s.mailLoginOn(),
@@ -192,7 +215,7 @@ func (s *Server) portalPage(c *gin.Context) {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(buf.String()))
 		return
 	}
-	info := sub.Info{Title: s.st.GetSetting("site_title", "Polaris"), Username: u.Username, Upload: u.UsedUp, Download: u.UsedDown,
+	info := sub.Info{Title: s.st.GetSetting("site_title", "Polaris"), Lang: portalLang(c), Username: u.Username, Upload: u.UsedUp, Download: u.UsedDown,
 		Total: u.TrafficLimit, Expire: u.ExpireAt, URL: s.subURL(u.SubToken)}
 	var nodes []sub.Node
 	if s.servedUser(u) {
@@ -452,4 +475,4 @@ func (b *tgBot) portalLoginAnswer(chat, msg int64, reqID, pick string, id tgIden
 //go:embed assets/portal-login.html
 var portalLoginHTML string
 
-var portalLoginTpl = template.Must(template.New("login").Funcs(template.FuncMap{"uiTokens": func() template.CSS { return template.CSS(uitheme.CSS) }}).Parse(portalLoginHTML))
+var portalLoginTpl = template.Must(template.New("login").Funcs(template.FuncMap{"uiTokens": func() template.CSS { return template.CSS(uitheme.CSS) }, "t": sub.PortalText}).Parse(portalLoginHTML))

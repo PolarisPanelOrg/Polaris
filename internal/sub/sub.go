@@ -88,12 +88,14 @@ type CDNProfileChoice struct {
 type Info struct {
 	TrafficMeterNote string // user-visible precision warning, never credentials
 	Title            string
-	Username         string
-	Upload           int64
-	Download         int64
-	Total            int64 // 0 = unlimited
-	Expire           *time.Time
-	URL              string // the subscription URL itself
+	// Lang is the portal UI locale (zh-CN or en); it never affects subscription data.
+	Lang     string
+	Username string
+	Upload   int64
+	Download int64
+	Total    int64 // 0 = unlimited
+	Expire   *time.Time
+	URL      string // the subscription URL itself
 
 	// Extras shown on the browser info page only.
 	Status         string // active / limited / expired / disabled

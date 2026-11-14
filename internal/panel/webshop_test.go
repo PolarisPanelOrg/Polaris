@@ -76,21 +76,21 @@ func TestWebShopCommunity(t *testing.T) {
 	if code, body := stranger.req("GET", res.URL, nil, false); code != 404 || strings.Contains(body, u.SubToken) {
 		t.Fatal("another browser read the order")
 	}
-	link := regexp.MustCompile(`\?k=([0-9a-f]{32})`).FindStringSubmatch(page)
-	if len(link) != 2 {
-		t.Fatal("no saved order link")
+	key := regexp.MustCompile(`凭据：<code>([0-9a-f]{32})`).FindStringSubmatch(page)
+	if len(key) != 2 || key[1] == "" || strings.Contains(page, "?k=") {
+		t.Fatal("order credential missing or leaked into URL")
 	}
-	if _, shop := stranger.req("GET", shopWebPath, nil, false); !strings.Contains(page, "凭据：<code>"+link[1]) || !strings.Contains(shop, "查询订单") {
+	if _, shop := stranger.req("GET", shopWebPath, nil, false); !strings.Contains(page, "凭据：<code>"+key[1]) || !strings.Contains(shop, "查询订单") {
 		t.Fatal("order id and credential not shown for lookup")
 	}
-	if code, _ := stranger.req("GET", res.URL+"?k="+strings.Repeat("0", 32), nil, false); code != 404 {
+	if code, _ := stranger.req("POST", res.URL+"/access", map[string]string{"key": strings.Repeat("0", 32)}, false); code != 404 {
 		t.Fatal("wrong credential opened the order")
 	}
-	if code, body := stranger.req("GET", res.URL+"?k="+link[1], nil, false); code != 200 || !strings.Contains(body, u.SubToken) {
-		t.Fatal("saved link did not open the order")
+	if code, _ := stranger.req("POST", res.URL+"/access", map[string]string{"key": key[1]}, false); code != 204 {
+		t.Fatal("credential exchange failed")
 	}
-	if code, _ := stranger.req("GET", res.URL, nil, false); code != 200 {
-		t.Fatal("saved link not remembered")
+	if code, body := stranger.req("GET", res.URL, nil, false); code != 200 || !strings.Contains(body, u.SubToken) {
+		t.Fatal("credential cookie did not open the order")
 	}
 	if _, body := buyer.req("GET", shopWebPath, nil, false); !strings.Contains(body, res.ID) {
 		t.Fatal("my orders missing")

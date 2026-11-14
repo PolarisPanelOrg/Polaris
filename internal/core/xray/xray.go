@@ -770,6 +770,9 @@ func renderRules(rules []model.RouteRule, balancers map[string]map[string]any) (
 		if m.Network != "" {
 			x["network"] = m.Network
 		}
+		if len(m.Protocol) > 0 {
+			x["protocol"] = m.Protocol
+		}
 		if len(x) == 1 {
 			if len(m.UserGroups) > 0 {
 				continue // group resolved to no users: rule matches nobody

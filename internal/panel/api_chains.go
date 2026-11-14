@@ -845,6 +845,12 @@ func (s *Server) putRouting(c *gin.Context) {
 				return
 			}
 		}
+		for _, p := range r.Match.Protocol {
+			if p != "bittorrent" {
+				badRequest(c, fmt.Errorf("不支持的嗅探协议 %q", p))
+				return
+			}
+		}
 	}
 	if nodeID != model.GlobalNodeID {
 		proposed := make([]model.RouteRule, len(req))

@@ -51,6 +51,7 @@ var pageTpl = template.Must(template.New("page").Funcs(template.FuncMap{
 	"bytes":     HumanBytes,
 	"flagText":  flags.Text,
 	"avatarURL": AvatarURL,
+	"t":         PortalText,
 	"portalStyle": func() template.CSS {
 		return template.CSS(uitheme.CSS + "\n" + portalShellCSS + "\n" + portalServicesCSS)
 	},
@@ -60,7 +61,7 @@ var pageTpl = template.Must(template.New("page").Funcs(template.FuncMap{
 	"portalBindingScript": func() template.JS { return template.JS(portalBindingJS) },
 	"portalCDNScript":     func() template.JS { return template.JS(portalCDNScript) }, // static bundled code only
 }).Parse(`<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/png" href="/favicon.ico?v=600cad3535ba"><link rel="apple-touch-icon" href="/apple-touch-icon.png?v=600cad3535ba">
+<html lang="{{.Lang}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/png" href="/favicon.ico?v=600cad3535ba"><link rel="apple-touch-icon" href="/apple-touch-icon.png?v=600cad3535ba">
 <meta name="robots" content="noindex"><meta name="referrer" content="no-referrer"><script>{{portalThemeScript}}</script>
 <title>{{.Title}} · 订阅</title>
 <style>
@@ -257,8 +258,9 @@ func RenderPage(info Info) ([]byte, error) {
 		label, expiryText = "待开通", "尚未开通"
 		exp = ""
 	}
+	lang := PortalLocale(info.Lang)
 	data := map[string]any{
-		"PortalActive": "overview", "PortalPageTitle": "仪表盘",
+		"PortalActive": "overview", "PortalPageTitle": PortalText(lang, "overview"), "Lang": lang,
 		"Title": info.Title, "Username": info.Username, "Used": used, "Upload": info.Upload, "Download": info.Download,
 		"Total": info.Total, "Left": left, "Percent": pct, "Expire": exp, "ExpiryText": expiryText, "ExpireLevel": expLevel, "Level": level, "URL": info.URL,
 		"Status": info.Status, "StatusLabel": label, "AwaitingPlan": awaitingPlan, "Announce": info.Announce, "ResetNote": info.ResetNote, "PlanName": info.PlanName, "PlanNext": info.PlanNext, "SpeedNote": info.SpeedNote,

@@ -8,9 +8,9 @@ import (
 // PortalNavigation is the shared chrome for authenticated service pages and
 // guest checkout. Feature links are supplied by the server's effective switches.
 type PortalNavigation struct {
-	Title, Username, Email, Active, PageTitle string
-	ShopURL, TicketsURL, AIURL                string
-	Guest, Registration                       bool
+	Title, Username, Email, Active, PageTitle, Lang string
+	ShopURL, TicketsURL, AIURL                      string
+	Guest, Registration                             bool
 }
 
 // RenderPortalSection renders an application's static html/template inside the
@@ -22,7 +22,7 @@ func RenderPortalSection(nav PortalNavigation, body *template.Template, data any
 		return nil, err
 	}
 	values := map[string]any{
-		"Title": nav.Title, "Username": nav.Username, "Email": nav.Email,
+		"Title": nav.Title, "Username": nav.Username, "Email": nav.Email, "Lang": PortalLocale(nav.Lang),
 		"PortalActive": nav.Active, "PortalPageTitle": nav.PageTitle,
 		"PortalShopURL": pageURL(nav.ShopURL), "PortalTicketsURL": pageURL(nav.TicketsURL),
 		"PortalAIURL": pageURL(nav.AIURL),
