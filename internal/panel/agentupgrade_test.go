@@ -1,6 +1,8 @@
 package panel
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	"github.com/cuijianzhuang/polaris/internal/store"
@@ -99,5 +101,40 @@ func TestUpgradeAllAgentsNoOutdated(t *testing.T) {
 	s.st.DB.Model(&store.UpgradeRollout{}).Count(&count)
 	if count != 0 {
 		t.Fatalf("no rollout expected, found %d", count)
+	}
+}
+
+// Regression: an arm64 node (ORACLE-SG) failed its upgrade with the agent
+// reporting "the panel has no agent binary for arm64". The panel had only
+// cached its own (amd64) binary, the on-demand arm64 fetch failed, and
+// upgradeAgent logged a warning and sent an empty sha256_arm64 anyway. The
+// upgrade must fail here, on the panel, with the fetch error — not reach
+// the agent as an empty SHA.
+func TestUpgradeAgentMissingArchBinaryFailsFast(t *testing.T) {
+	s := newTestServer(t)
+	// Version is "dev" in tests, so ensureAgent fails without touching the
+	// network and no binary is cached.
+	n := &store.Node{ID: "n1", Name: "ORACLE-SG", Arch: "arm64", AgentVersion: "v0.1.0"}
+	s.hub.register(n.ID) // mark the node online
+	err := s.upgradeAgent(context.Background(), n)
+	if err == nil {
+		t.Fatal("expected an error when the arm64 binary is not cached")
+	}
+	if !strings.Contains(err.Error(), "arm64") {
+		t.Fatalf("error should name the missing architecture: %v", err)
+	}
+}
+
+// The same failure for an amd64 node must name amd64, not fail silently.
+func TestUpgradeAgentMissingAmd64BinaryFailsFast(t *testing.T) {
+	s := newTestServer(t)
+	n := &store.Node{ID: "n2", Name: "amd64-node", Arch: "amd64", AgentVersion: "v0.1.0"}
+	s.hub.register(n.ID)
+	err := s.upgradeAgent(context.Background(), n)
+	if err == nil {
+		t.Fatal("expected an error when the amd64 binary is not cached")
+	}
+	if !strings.Contains(err.Error(), "amd64") {
+		t.Fatalf("error should name the missing architecture: %v", err)
 	}
 }
